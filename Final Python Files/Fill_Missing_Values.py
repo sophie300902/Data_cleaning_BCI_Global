@@ -200,8 +200,10 @@ def select_dataframe(dataframes):
 
 def main():
     """Main function to run the data imputation script."""
-    directory = "Tables Joined"
-    imputed_directory = "Imputed Data"
+    ################### USER HAS TO CHANGE THE FOLLOWING LINE #########################
+    directory = "Tables Joined" # directory of the client's datasets
+    imputed_directory = "Imputed Data" # directory for where to save the outputs
+    ###################################################################################
     dataframes = load_data(directory)
 
     selected_df, original_filename = select_dataframe(dataframes)
