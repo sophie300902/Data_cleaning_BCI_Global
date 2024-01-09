@@ -121,65 +121,6 @@ def impute_with_random_forest(data, column, key_columns=[]):
 
     return data
     
-
-
-
-def impute_with_knn(data, column, key_columns=[], n_neighbors=5):
-    # Convert to numeric where possible
-    data = convert_to_numeric(data)
-
-    # Separate key columns and data to impute
-    key_data = data[key_columns] if key_columns else pd.DataFrame()
-    data_to_impute = data.drop(columns=key_columns, errors='ignore')
-
-    # Apply label encoding and store the encoders
-    label_encoded_data, encoders = apply_label_encoding(data_to_impute)
-
-    # One-hot encoding and keep track of dummy columns
-    data_encoded, dummy_columns_mapping = one_hot_encode(label_encoded_data, return_dummy_columns_mapping=True)
-
-    if data_encoded.dropna().empty:
-        print(f"Cannot impute '{column}' with KNN as all rows have missing values.")
-        return data
-    
-    # Impute using KNN
-    imputer = KNNImputer(n_neighbors=n_neighbors)
-    data_imputed = imputer.fit_transform(data_encoded)
-     
-    # Create a new column for imputed values
-    imputed_column_name = f"{column}_imputed_knn"
-    imputed_data = data_imputed[:, data_encoded.columns.get_loc(column)]
-     
-    # Reverse label encoding if the column was originally categorical
-    if column in encoders:
-        imputed_data = encoders[column].inverse_transform(imputed_data.round().astype(int))
-
-    data[imputed_column_name] = imputed_data
-    
-    # Calculate certainty
-    certainty_column_name = f"{column}_certainty_knn"
-    if data_encoded[column].isna().all():
-        print(f"All values in '{column}' are missing. Imputing with default value.")
-        # Handle categorical columns
-        if column in encoders:
-            most_common_category = encoders[column].classes_[0]  # Default to the first class
-            data[column] = most_common_category
-        else:
-            # Handle numerical columns
-            default_value = 0  # Or any other default value or calculated value
-            data[column] = default_value
-    else:
-        nn = NearestNeighbors(n_neighbors=n_neighbors)
-        nn.fit(data_encoded.dropna())
-        missing_rows = data_encoded[data_encoded[column].isna()]
-        if not missing_rows.empty:
-            distances, _ = nn.kneighbors(missing_rows)
-            data.loc[data_encoded[column].isna(), certainty_column_name] = np.mean(distances, axis=1)
-        else:
-            data[certainty_column_name] = np.nan
-
-    return data
-
 def select_dataframe(dataframes):
     """Let the user select a dataframe from a list and return both the dataframe and its filename."""
     while True:
@@ -200,10 +141,8 @@ def select_dataframe(dataframes):
 
 def main():
     """Main function to run the data imputation script."""
-    ################### USER HAS TO CHANGE THE FOLLOWING LINE #########################
-    directory = "Tables Joined" # directory of the client's datasets
-    imputed_directory = "Imputed Data" # directory for where to save the outputs
-    ###################################################################################
+    directory = "Tables Joined"
+    imputed_directory = "Imputed Data"
     dataframes = load_data(directory)
 
     selected_df, original_filename = select_dataframe(dataframes)
@@ -236,10 +175,7 @@ def main():
 
     for column in columns_to_impute:
         if selected_df[column].isnull().any():
-            # KNN Imputation
-            print(f"Imputing missing values in '{column}' using KNN...")
-            selected_df = impute_with_knn(selected_df, column, key_columns=key_columns)
-
+        
             # Random Forest Imputation
             print(f"Imputing missing values in '{column}' using Random Forest...")
             selected_df = impute_with_random_forest(selected_df, column, key_columns=key_columns)
